@@ -1,8 +1,11 @@
 package com.nabil.teranga_pay_api.auth;
 
-public class PhoneAlreadyRegisteredException extends RuntimeException {
+import com.nabil.teranga_pay_api.common.ApiException;
+import org.springframework.http.HttpStatus;
+
+public class PhoneAlreadyRegisteredException extends ApiException {
 
     public PhoneAlreadyRegisteredException() {
-        super("Un compte existe déjà avec ce numéro de téléphone");
+        super(HttpStatus.CONFLICT, "Un compte existe déjà avec ce numéro de téléphone");
     }
 }
