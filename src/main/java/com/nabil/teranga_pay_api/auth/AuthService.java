@@ -2,11 +2,11 @@ package com.nabil.teranga_pay_api.auth;
 
 import com.nabil.teranga_pay_api.account.Account;
 import com.nabil.teranga_pay_api.account.AccountRepository;
+import com.nabil.teranga_pay_api.common.InvalidPhoneNumberException;
 import com.nabil.teranga_pay_api.common.PhoneNormalizer;
 import com.nabil.teranga_pay_api.user.Role;
 import com.nabil.teranga_pay_api.user.User;
 import com.nabil.teranga_pay_api.user.UserRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -14,15 +14,31 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.Optional;
+import java.util.UUID;
 
 @Service
-@RequiredArgsConstructor
 public class AuthService {
 
     private final UserRepository userRepository;
     private final AccountRepository accountRepository;
     private final PasswordEncoder passwordEncoder;
+    private final TokenService tokenService;
     private final Clock clock;
+    private final String dummyHash;
+
+    public AuthService(UserRepository userRepository,
+                       AccountRepository accountRepository,
+                       PasswordEncoder passwordEncoder,
+                       TokenService tokenService,
+                       Clock clock) {
+        this.userRepository = userRepository;
+        this.accountRepository = accountRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.tokenService = tokenService;
+        this.clock = clock;
+        this.dummyHash = passwordEncoder.encode(UUID.randomUUID().toString());
+    }
 
     @Transactional
     public RegisterResponse register(RegisterRequest request) {
@@ -49,5 +65,28 @@ public class AuthService {
         accountRepository.save(new Account(user, now));
 
         return new RegisterResponse(user.getId(), user.getFullName(), user.getPhone());
+    }
+
+    public LoginResponse login(LoginRequest request) {
+        Optional<User> found = findByRawPhone(request.phone());
+
+        String hashToCheck = found.map(User::getPasswordHash).orElse(dummyHash);
+        boolean passwordMatches = passwordEncoder.matches(request.password(), hashToCheck);
+
+        if (found.isEmpty() || !passwordMatches) {
+            throw new InvalidCredentialsException();
+        }
+
+        User user = found.get();
+        String token = tokenService.issue(user.getId(), user.getRole());
+        return new LoginResponse(token, "Bearer", tokenService.expiresInSeconds());
+    }
+
+    private Optional<User> findByRawPhone(String rawPhone) {
+        try {
+            return userRepository.findByPhone(PhoneNormalizer.normalize(rawPhone));
+        } catch (InvalidPhoneNumberException e) {
+            return Optional.empty();
+        }
     }
 }

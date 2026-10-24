@@ -15,6 +15,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -34,6 +36,9 @@ class AuthServiceTest {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private JwtDecoder jwtDecoder;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -87,5 +92,34 @@ class AuthServiceTest {
                 authService.register(new RegisterRequest("Awa Diop", "12345", "motdepasse123")));
 
         assertEquals(usersBefore, userRepository.count());
+    }
+
+    @Test
+    void loginWithCorrectCredentialsReturnsValidTokenForTheUser() {
+        RegisterResponse registered = authService.register(
+                new RegisterRequest("Awa Diop", "+221771234567", "motdepasse123"));
+
+        LoginResponse response =
+                authService.login(new LoginRequest("77 123 45 67", "motdepasse123"));
+
+        Jwt jwt = jwtDecoder.decode(response.accessToken());
+        assertEquals(registered.userId().toString(), jwt.getSubject());
+        assertEquals("USER", jwt.getClaimAsString("role"));
+        assertEquals("Bearer", response.tokenType());
+    }
+
+    @Test
+    void wrongPasswordUnknownNumberAndInvalidNumberGiveTheSameError() {
+        authService.register(new RegisterRequest("Awa Diop", "+221771234567", "motdepasse123"));
+
+        InvalidCredentialsException wrongPassword = assertThrows(InvalidCredentialsException.class,
+                () -> authService.login(new LoginRequest("+221771234567", "mauvais-mot-de-passe")));
+        InvalidCredentialsException unknownNumber = assertThrows(InvalidCredentialsException.class,
+                () -> authService.login(new LoginRequest("+221781234567", "motdepasse123")));
+        InvalidCredentialsException invalidNumber = assertThrows(InvalidCredentialsException.class,
+                () -> authService.login(new LoginRequest("abc", "motdepasse123")));
+
+        assertEquals(wrongPassword.getMessage(), unknownNumber.getMessage());
+        assertEquals(wrongPassword.getMessage(), invalidNumber.getMessage());
     }
 }
