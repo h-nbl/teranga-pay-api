@@ -40,6 +40,6 @@ public final class PhoneNormalizer {
     }
 
     private static IllegalArgumentException invalid() {
-        return new IllegalArgumentException("Numéro de téléphone invalide");
+        return new InvalidPhoneNumberException();
     }
 }
