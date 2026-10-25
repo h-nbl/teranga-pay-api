@@ -11,12 +11,15 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import lombok.extern.slf4j.Slf4j;
+import com.nabil.teranga_pay_api.common.PhoneMasker;
 
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
+@Slf4j
 @Service
 public class AuthService {
 
@@ -63,7 +66,7 @@ public class AuthService {
         }
 
         accountRepository.save(new Account(user, now));
-
+        log.info("User registered: userId={}", user.getId());
         return new RegisterResponse(user.getId(), user.getFullName(), user.getPhone());
     }
 
@@ -74,10 +77,13 @@ public class AuthService {
         boolean passwordMatches = passwordEncoder.matches(request.password(), hashToCheck);
 
         if (found.isEmpty() || !passwordMatches) {
+            String reason = found.isEmpty() ? "unknown_number" : "bad_password";
+            log.warn("Login failed: reason={} phone={}", reason, PhoneMasker.mask(request.phone()));
             throw new InvalidCredentialsException();
         }
 
         User user = found.get();
+        log.info("Login succeeded: userId={}", user.getId());
         String token = tokenService.issue(user.getId(), user.getRole());
         return new LoginResponse(token, "Bearer", tokenService.expiresInSeconds());
     }

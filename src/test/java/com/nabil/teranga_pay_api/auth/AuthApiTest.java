@@ -17,8 +17,8 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -146,6 +146,38 @@ class AuthApiTest {
                 .andExpect(status().isUnauthorized());
 
         assertFalse(output.getAll().contains("Wr0ngPassw0rd-Unique"));
+    }
+
+    @Test
+    void failedLoginsAreLoggedWithReasonAndMaskedPhone(CapturedOutput output) throws Exception {
+        postJson(REGISTER, registerJson("Awa Diop", "+221771234567", "motdepasse123"))
+                .andExpect(status().isCreated());
+
+        postJson(LOGIN, loginJson("77 123 45 67", "mauvais-mot-de-passe"))
+                .andExpect(status().isUnauthorized());
+        postJson(LOGIN, loginJson("+221781234599", "motdepasse123"))
+                .andExpect(status().isUnauthorized());
+
+        String logs = output.getAll();
+        assertTrue(logs.contains("Login failed: reason=bad_password phone=***67"));
+        assertTrue(logs.contains("Login failed: reason=unknown_number phone=***99"));
+        assertFalse(logs.contains("771234567"));
+        assertFalse(logs.contains("781234599"));
+        assertFalse(logs.contains("mauvais-mot-de-passe"));
+    }
+
+    @Test
+    void successfulLoginIsLoggedWithUserIdButNoPhone(CapturedOutput output) throws Exception {
+        MvcResult registered = postJson(REGISTER, registerJson("Awa Diop", "+221771234567", "motdepasse123"))
+                .andExpect(status().isCreated())
+                .andReturn();
+        String userId = JsonPath.read(registered.getResponse().getContentAsString(), "$.userId");
+
+        postJson(LOGIN, loginJson("+221771234567", "motdepasse123"))
+                .andExpect(status().isOk());
+
+        assertTrue(output.getAll().contains("Login succeeded: userId=" + userId));
+        assertFalse(output.getAll().contains("771234567"));
     }
 
     private ResultActions postJson(String path, String json) throws Exception {
