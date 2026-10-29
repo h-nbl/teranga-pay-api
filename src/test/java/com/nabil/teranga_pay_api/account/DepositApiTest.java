@@ -121,6 +121,17 @@ class DepositApiTest extends AbstractApiTest {
         assertEquals(2, transactionsOf(accountOf(awa)).size());
     }
 
+    @Test
+    void decimalAmountIsRefusedWith400InsteadOfBeingTruncated() throws Exception {
+        TestUser awa = createUser("Awa Diop", "+221771234567");
+
+        postDeposit(awa, "{\"amount\":1000.5}")
+                .andExpect(status().isBadRequest());
+
+        assertEquals(0, accountOf(awa).getBalance());
+        assertTrue(transactionsOf(accountOf(awa)).isEmpty());
+    }
+
     private ResultActions deposit(TestUser user, long amount) throws Exception {
         return postDeposit(user, "{\"amount\":" + amount + "}");
     }
