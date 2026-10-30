@@ -50,7 +50,7 @@ public class Transaction {
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
-    public Transaction(TransactionType type, Account fromAccount, Account toAccount, long amount, TransactionStatus status, String idempotencyKey, String requestHash, int riskScore, Instant createdAt) {
+    private Transaction(TransactionType type, Account fromAccount, Account toAccount, long amount, TransactionStatus status, String idempotencyKey, String requestHash, int riskScore, Instant createdAt) {
         this.type = type;
         this.fromAccount = fromAccount;
         this.toAccount = toAccount;
@@ -60,6 +60,11 @@ public class Transaction {
         this.requestHash = requestHash;
         this.riskScore = riskScore;
         this.createdAt = createdAt;
+    }
+
+    public static Transaction deposit(Account to, long amount, Instant now) {
+        return new Transaction(TransactionType.DEPOSIT, null, to, amount,
+                TransactionStatus.COMPLETED, null, null, 0, now);
     }
 }
 

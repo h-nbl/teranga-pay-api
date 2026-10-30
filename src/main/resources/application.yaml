@@ -14,11 +14,16 @@ spring:
       ddl-auto: validate
   flyway:
     enabled: true
+  jackson:
+    deserialization:
+      accept-float-as-int: false
 
 app:
   jwt:
     secret: ${JWT_SECRET}
     expiration-minutes: 30
+  wallet:
+    max-deposit: 1000000
 
 logging:
   level:
