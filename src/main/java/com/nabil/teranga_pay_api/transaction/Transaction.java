@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import java.util.Objects;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -65,6 +66,19 @@ public class Transaction {
     public static Transaction deposit(Account to, long amount, Instant now) {
         return new Transaction(TransactionType.DEPOSIT, null, to, amount,
                 TransactionStatus.COMPLETED, null, null, 0, now);
+    }
+
+    public static Transaction transfer(Account from, Account to, long amount,
+                                       String idempotencyKey, String requestHash, Instant now) {
+        Objects.requireNonNull(from, "from");
+        Objects.requireNonNull(to, "to");
+        Objects.requireNonNull(idempotencyKey, "idempotencyKey");
+        Objects.requireNonNull(requestHash, "requestHash");
+        if (amount <= 0) {
+            throw new IllegalArgumentException("Le montant doit être strictement positif");
+        }
+        return new Transaction(TransactionType.TRANSFER, from, to, amount,
+                TransactionStatus.COMPLETED, idempotencyKey, requestHash, 0, now);
     }
 }
 
